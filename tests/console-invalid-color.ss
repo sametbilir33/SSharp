@@ -1,0 +1,1 @@
+Console.ForegroundColor = 16;

@@ -1,0 +1,32 @@
+#ifndef SSHARP_RUNTIME_STRING_NATIVE_H
+#define SSHARP_RUNTIME_STRING_NATIVE_H
+
+enum {
+    SSHARP_STRING_CONCAT = 1,
+    SSHARP_STRING_LENGTH,
+    SSHARP_STRING_CONTAINS,
+    SSHARP_STRING_STARTS_WITH,
+    SSHARP_STRING_ENDS_WITH,
+    SSHARP_STRING_INDEX_OF,
+    SSHARP_STRING_LAST_INDEX_OF,
+    SSHARP_STRING_REPLACE,
+    SSHARP_STRING_SUBSTRING,
+    SSHARP_STRING_TRIM,
+    SSHARP_STRING_TRIM_START,
+    SSHARP_STRING_TRIM_END,
+    SSHARP_STRING_TO_UPPER,
+    SSHARP_STRING_TO_LOWER,
+    SSHARP_STRING_IS_NULL_OR_EMPTY,
+    SSHARP_STRING_IS_NULL_OR_WHITE_SPACE,
+    SSHARP_STRING_FORMAT
+};
+
+long long ssharp_string_native(
+    const char *source,
+    const char *first,
+    const char *second,
+    long long start,
+    long long count,
+    long long operation);
+
+#endif

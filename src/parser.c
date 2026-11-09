@@ -91,9 +91,32 @@ static Expr *parse_expression(void);
 static Stmt *parse_statement(void);
 static Stmt *parse_declaration(void);
 static Stmt *parse_block(void);
+static DataType parse_type(void);
+static DataType parse_array_suffix(DataType type);
 
 static Expr *parse_primary(void)
 {
+    if (match(TOK_NEW)) {
+        DataType element_type = parse_type();
+        DataType array_type = element_type == TYPE_INT ? TYPE_INT_ARRAY :
+            (element_type == TYPE_BOOL ? TYPE_BOOL_ARRAY :
+            (element_type == TYPE_STRING ? TYPE_STRING_ARRAY : TYPE_ERROR));
+        if (array_type == TYPE_ERROR) {
+            fprintf(stderr, "S# Parser: Expected array type after 'new'.\n");
+            had_error = 1;
+            return NULL;
+        }
+        consume(TOK_LEFT_BRACKET, "Expected '[' after array element type");
+        Expr *length = parse_expression();
+        consume(TOK_RIGHT_BRACKET, "Expected ']' after array length");
+        if (!length)
+            return NULL;
+        Expr *array = new_expr(EXPR_ARRAY_CREATE);
+        array->array_create.data_type = array_type;
+        array->array_create.length = length;
+        return array;
+    }
+
     if (match(TOK_NUMBER) ||
         match(TOK_STRING) ||
         match(TOK_INTERPOLATED_STRING) ||
@@ -225,6 +248,18 @@ static Expr *parse_postfix(void)
             consume(TOK_RIGHT_PAREN, "Expected ')' after arguments");
 
             expr = call;
+        }
+        else if (match(TOK_LEFT_BRACKET)) {
+            Expr *index = parse_expression();
+            consume(TOK_RIGHT_BRACKET, "Expected ']' after array index");
+            if (!index) {
+                ast_free_expr(expr);
+                return NULL;
+            }
+            Expr *indexed = new_expr(EXPR_INDEX);
+            indexed->index.object = expr;
+            indexed->index.index = index;
+            expr = indexed;
         }
         else {
             break;
@@ -411,7 +446,9 @@ static Expr *parse_assignment(void)
 
         Expr *value = parse_assignment();
 
-        if (!expr || expr->type != EXPR_VARIABLE) {
+        if (!expr ||
+            (expr->type != EXPR_VARIABLE && expr->type != EXPR_MEMBER &&
+             expr->type != EXPR_INDEX)) {
             fprintf(stderr,
                 "S# Parser: Invalid assignment target at %d:%d\n",
                 equals.line,
@@ -430,10 +467,16 @@ static Expr *parse_assignment(void)
 
         Expr *assign = new_expr(EXPR_ASSIGN);
 
-        assign->assign.name = expr->variable.name;
+        if (expr->type == EXPR_VARIABLE) {
+            assign->assign.name = expr->variable.name;
+            free(expr);
+        } else {
+            assign->assign.name = expr->type == EXPR_MEMBER
+                ? expr->member.name
+                : equals;
+            assign->assign.target = expr;
+        }
         assign->assign.value = value;
-
-        free(expr);
 
         return assign;
     }
@@ -451,6 +494,8 @@ static int is_type_token(TokenType type)
     return type == TOK_INT ||
            type == TOK_FLOAT ||
            type == TOK_DOUBLE ||
+           type == TOK_ULONG ||
+           type == TOK_CHAR ||
            type == TOK_BOOL ||
            type == TOK_STRING_TYPE;
 }
@@ -479,6 +524,14 @@ static DataType parse_type(void)
             advance_token();
             return TYPE_DOUBLE;
 
+        case TOK_ULONG:
+            advance_token();
+            return TYPE_UINT64;
+
+        case TOK_CHAR:
+            advance_token();
+            return TYPE_CHAR;
+
         case TOK_BOOL:
             advance_token();
             return TYPE_BOOL;
@@ -492,6 +545,61 @@ static DataType parse_type(void)
     }
 }
 
+static DataType parse_array_suffix(DataType type)
+{
+    if (!match(TOK_LEFT_BRACKET))
+        return type;
+    consume(TOK_RIGHT_BRACKET, "Only single-dimensional arrays are supported");
+
+    switch (type) {
+        case TYPE_INT: return TYPE_INT_ARRAY;
+        case TYPE_BOOL: return TYPE_BOOL_ARRAY;
+        case TYPE_STRING: return TYPE_STRING_ARRAY;
+        default:
+            fprintf(stderr, "S# Parser: Arrays of this type are not supported.\n");
+            had_error = 1;
+            return TYPE_ERROR;
+    }
+}
+
+static int is_array_type(DataType type)
+{
+    return type == TYPE_INT_ARRAY ||
+        type == TYPE_BOOL_ARRAY ||
+        type == TYPE_STRING_ARRAY;
+}
+
+static Expr *parse_array_initializer(void)
+{
+    Expr *literal = new_expr(EXPR_ARRAY_LITERAL);
+    size_t capacity = 0;
+    if (!check(TOK_RIGHT_BRACE)) {
+        do {
+            Expr *element = parse_expression();
+            if (!element) {
+                ast_free_expr(literal);
+                return NULL;
+            }
+            if (literal->array_literal.count == capacity) {
+                size_t next = capacity ? capacity * 2 : 4;
+                Expr **elements = realloc(
+                    literal->array_literal.elements,
+                    next * sizeof(Expr *));
+                if (!elements) {
+                    fprintf(stderr, "S#: Out of memory.\n");
+                    exit(EXIT_FAILURE);
+                }
+                literal->array_literal.elements = elements;
+                capacity = next;
+            }
+            literal->array_literal.elements[
+                literal->array_literal.count++] = element;
+        } while (match(TOK_COMMA) && !check(TOK_RIGHT_BRACE));
+    }
+    consume(TOK_RIGHT_BRACE, "Expected '}' after array initializer");
+    return literal;
+}
+
 static Stmt *parse_variable_after_name(
     DataType type,
     Token name,
@@ -500,7 +608,10 @@ static Stmt *parse_variable_after_name(
     Expr *initializer = NULL;
 
     if (match(TOK_EQUAL)) {
-        initializer = parse_expression();
+        if (is_array_type(type) && match(TOK_LEFT_BRACE))
+            initializer = parse_array_initializer();
+        else
+            initializer = parse_expression();
 
         if (!initializer)
             return NULL;
@@ -538,7 +649,7 @@ static Stmt *parse_function_declaration(DataType return_type, Token name)
                 break;
             }
 
-            DataType parameter_type = parse_type();
+            DataType parameter_type = parse_array_suffix(parse_type());
             Token parameter_name = consume(
                 TOK_IDENTIFIER,
                 "Expected parameter name"
@@ -582,7 +693,7 @@ static Stmt *parse_function_declaration(DataType return_type, Token name)
 
 static Stmt *parse_typed_declaration(void)
 {
-    DataType type = parse_type();
+    DataType type = parse_array_suffix(parse_type());
     Token name = consume(TOK_IDENTIFIER, "Expected declaration name");
 
     if (check(TOK_LEFT_PAREN))
@@ -696,7 +807,7 @@ static Stmt *parse_for_statement(void)
     if (match(TOK_SEMICOLON)) {
         initializer = NULL;
     } else if (is_type_token(current.type)) {
-        DataType type = parse_type();
+        DataType type = parse_array_suffix(parse_type());
         Token name = consume(TOK_IDENTIFIER, "Expected variable name");
         initializer = parse_variable_after_name(type, name, 1);
     } else {

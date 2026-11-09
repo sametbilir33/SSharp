@@ -9,11 +9,16 @@ typedef enum {
     TYPE_INT,
     TYPE_FLOAT,
     TYPE_DOUBLE,
+    TYPE_UINT64,
+    TYPE_CHAR,
     TYPE_BOOL,
     TYPE_STRING,
     TYPE_VOID,
     TYPE_NULL,
-    TYPE_ERROR
+    TYPE_ERROR,
+    TYPE_INT_ARRAY,
+    TYPE_BOOL_ARRAY,
+    TYPE_STRING_ARRAY
 } DataType;
 
 typedef enum {
@@ -23,7 +28,10 @@ typedef enum {
     EXPR_UNARY,
     EXPR_ASSIGN,
     EXPR_CALL,
-    EXPR_MEMBER
+    EXPR_MEMBER,
+    EXPR_INDEX,
+    EXPR_ARRAY_LITERAL,
+    EXPR_ARRAY_CREATE
 } ExprType;
 
 typedef enum {
@@ -72,6 +80,7 @@ struct Expr {
         struct {
             Token name;
             Expr *value;
+            Expr *target;
         } assign;
 
         struct {
@@ -84,6 +93,21 @@ struct Expr {
             Expr *object;
             Token name;
         } member;
+
+        struct {
+            Expr *object;
+            Expr *index;
+        } index;
+
+        struct {
+            Expr **elements;
+            size_t count;
+        } array_literal;
+
+        struct {
+            DataType data_type;
+            Expr *length;
+        } array_create;
     };
 };
 

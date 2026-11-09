@@ -130,6 +130,8 @@ static TokenType keyword_type(const char *start, size_t length)
     KEYWORD("int", TOK_INT);
     KEYWORD("float", TOK_FLOAT);
     KEYWORD("double", TOK_DOUBLE);
+    KEYWORD("ulong", TOK_ULONG);
+    KEYWORD("char", TOK_CHAR);
     KEYWORD("bool", TOK_BOOL);
     KEYWORD("string", TOK_STRING_TYPE);
 

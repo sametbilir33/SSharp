@@ -21,6 +21,7 @@ void ast_free_expr(Expr *expr)
 
         case EXPR_ASSIGN:
             ast_free_expr(expr->assign.value);
+            ast_free_expr(expr->assign.target);
             break;
 
         case EXPR_CALL:
@@ -34,6 +35,21 @@ void ast_free_expr(Expr *expr)
 
         case EXPR_MEMBER:
             ast_free_expr(expr->member.object);
+            break;
+
+        case EXPR_INDEX:
+            ast_free_expr(expr->index.object);
+            ast_free_expr(expr->index.index);
+            break;
+
+        case EXPR_ARRAY_LITERAL:
+            for (size_t i = 0; i < expr->array_literal.count; i++)
+                ast_free_expr(expr->array_literal.elements[i]);
+            free(expr->array_literal.elements);
+            break;
+
+        case EXPR_ARRAY_CREATE:
+            ast_free_expr(expr->array_create.length);
             break;
 
         case EXPR_LITERAL:
@@ -108,11 +124,16 @@ static const char *data_type_name(DataType type)
         case TYPE_INT: return "int";
         case TYPE_FLOAT: return "float";
         case TYPE_DOUBLE: return "double";
+        case TYPE_UINT64: return "ulong";
+        case TYPE_CHAR: return "char";
         case TYPE_BOOL: return "bool";
         case TYPE_STRING: return "string";
         case TYPE_VOID: return "void";
         case TYPE_NULL: return "null";
         case TYPE_ERROR: return "error";
+        case TYPE_INT_ARRAY: return "int[]";
+        case TYPE_BOOL_ARRAY: return "bool[]";
+        case TYPE_STRING_ARRAY: return "string[]";
     }
 
     return "unknown";
@@ -166,6 +187,8 @@ static void print_expr(Expr *expr, int depth)
                 (int)expr->assign.name.length,
                 expr->assign.name.start);
 
+            if (expr->assign.target)
+                print_expr(expr->assign.target, depth + 1);
             print_expr(expr->assign.value, depth + 1);
             break;
 
@@ -185,8 +208,27 @@ static void print_expr(Expr *expr, int depth)
             printf("MEMBER: %.*s\n",
                 (int)expr->member.name.length,
                 expr->member.name.start);
-
             print_expr(expr->member.object, depth + 1);
+            break;
+
+        case EXPR_INDEX:
+            print_indent(depth);
+            puts("INDEX");
+            print_expr(expr->index.object, depth + 1);
+            print_expr(expr->index.index, depth + 1);
+            break;
+
+        case EXPR_ARRAY_LITERAL:
+            print_indent(depth);
+            puts("ARRAY");
+            for (size_t i = 0; i < expr->array_literal.count; i++)
+                print_expr(expr->array_literal.elements[i], depth + 1);
+            break;
+
+        case EXPR_ARRAY_CREATE:
+            print_indent(depth);
+            puts("ARRAY CREATE");
+            print_expr(expr->array_create.length, depth + 1);
             break;
     }
 }

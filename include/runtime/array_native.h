@@ -1,0 +1,34 @@
+#ifndef SSHARP_RUNTIME_ARRAY_NATIVE_H
+#define SSHARP_RUNTIME_ARRAY_NATIVE_H
+
+enum {
+    SSHARP_ARRAY_ALLOCATE = 1,
+    SSHARP_ARRAY_GET,
+    SSHARP_ARRAY_SET,
+    SSHARP_ARRAY_LENGTH,
+    SSHARP_ARRAY_REVERSE,
+    SSHARP_ARRAY_SORT_INT,
+    SSHARP_ARRAY_SORT_BOOL,
+    SSHARP_ARRAY_SORT_STRING,
+    SSHARP_ARRAY_INDEX_OF_INT,
+    SSHARP_ARRAY_INDEX_OF_BOOL,
+    SSHARP_ARRAY_INDEX_OF_STRING,
+    SSHARP_ARRAY_LAST_INDEX_OF_INT,
+    SSHARP_ARRAY_LAST_INDEX_OF_BOOL,
+    SSHARP_ARRAY_LAST_INDEX_OF_STRING,
+    SSHARP_ARRAY_COPY,
+    SSHARP_ARRAY_RESIZE,
+    SSHARP_ARRAY_CLEAR,
+    SSHARP_ARRAY_FILL,
+    SSHARP_ARRAY_FILL_ALL
+};
+
+long long ssharp_array_native(
+    long long array,
+    long long index,
+    long long value,
+    long long length,
+    long long unused,
+    long long operation);
+
+#endif

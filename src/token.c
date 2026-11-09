@@ -20,6 +20,8 @@ const char *token_type_name(TokenType type)
         "INT",
         "FLOAT",
         "DOUBLE",
+        "ULONG",
+        "CHAR",
         "BOOL",
         "STRING_TYPE",
         "TRUE",

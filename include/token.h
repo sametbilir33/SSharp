@@ -23,6 +23,8 @@ typedef enum {
     TOK_INT,
     TOK_FLOAT,
     TOK_DOUBLE,
+    TOK_ULONG,
+    TOK_CHAR,
     TOK_BOOL,
     TOK_STRING_TYPE,
     TOK_TRUE,
